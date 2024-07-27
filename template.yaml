@@ -1,0 +1,67 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  wise-up
+
+  Template for wise-up
+
+Globals:
+  Function:
+    Timeout: 10
+
+Parameters:
+  UpApiKey:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /wiseup/UpApiKey
+    Description: Up API Key
+  UpWebhookSecret:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /wiseup/UpWebhookSecret
+    Description: Up Webhook Secret
+  SplitwiseApiKey:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /wiseup/SplitwiseApiKey
+    Description: Splitwise API Key
+
+Resources:
+  CreateExpenseFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: create-expense/
+      Handler: app.main
+      Runtime: nodejs20.x
+      Architectures:
+        - x86_64
+      Events:
+        CreateExpense:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /create-expense
+            Method: post
+      Environment:
+        Variables:
+          UpApiKey: !Ref UpApiKey
+          UpWebhookSecret: !Ref UpWebhookSecret
+          SplitwiseApiKey: !Ref SplitwiseApiKey
+    Metadata: # Manage esbuild properties
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints:
+          - app.ts
+
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  CreateExpenseApi:
+    Description: "API Gateway endpoint URL for webhook listener function to create an expense in splitwise"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/create-expense/"
+  CreateExpenseFunction:
+    Description: "Create Expense Lambda Function ARN"
+    Value: !GetAtt CreateExpenseFunction.Arn
+  CreateExpenseFunctionIamRole:
+    Description: "Implicit IAM Role created for Create Expense function"
+    Value: !GetAtt CreateExpenseFunctionRole.Arn
